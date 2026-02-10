@@ -47,6 +47,7 @@
       display: flex;
       justify-content: center;
       gap: 16px;
+      height: 64px;
     }
 
     button {
@@ -69,7 +70,6 @@
 
     .no {
       background: #eee;
-      position: relative;
     }
 
     .hidden-message {
@@ -105,9 +105,9 @@
 
     <div class="question">Will you be my Valentine? 🌹</div>
 
-    <div class="buttons">
-      <button class="yes" onclick="sayYes()">YES 💕</button>
-      <button class="no" onmouseover="moveNo()">No 🚃</button>
+    <div class="buttons" id="btnArea">
+      <button class="yes" id="yesBtn" onclick="sayYes()">YES 💕</button>
+      <button class="no" id="noBtn">No 🙃</button>
     </div>
 
     <div class="hidden-message" id="message">
@@ -117,12 +117,84 @@
   </div>
 
   <script>
-    function moveNo() {
-      const btn = document.querySelector('.no');
-      btn.style.position = 'absolute';
-      btn.style.left = Math.random() * 80 + '%';
-      btn.style.top = Math.random() * 80 + '%';
+    const noBtn = document.getElementById('noBtn');
+    const btnArea = document.getElementById('btnArea');
+    const yesBtn = document.getElementById('yesBtn');
+
+    // Ensure position for movement
+    btnArea.style.position = 'relative';
+    noBtn.style.position = 'absolute';
+
+    function placeNoInitial() {
+      const area = btnArea.getBoundingClientRect();
+      const x = Math.max(8, area.width - noBtn.offsetWidth - 8);
+      const y = Math.max(8, (area.height - noBtn.offsetHeight) / 2);
+      noBtn.style.left = x + 'px';
+      noBtn.style.top = y + 'px';
     }
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+    function dodgeFrom(clientX, clientY) {
+      const area = btnArea.getBoundingClientRect();
+      const btn = noBtn.getBoundingClientRect();
+
+      const fx = clientX - area.left;
+      const fy = clientY - area.top;
+
+      const bx = (btn.left - area.left) + btn.width / 2;
+      const by = (btn.top - area.top) + btn.height / 2;
+
+      const dx = bx - fx;
+      const dy = by - fy;
+      const dist = Math.hypot(dx, dy);
+
+      const dangerRadius = 90;
+
+      if (dist < dangerRadius) {
+        const push = (dangerRadius - dist) * 2.2;
+        const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.5;
+
+        const nx = bx + Math.cos(angle) * push;
+        const ny = by + Math.sin(angle) * push;
+
+        const left = nx - noBtn.offsetWidth / 2;
+        const top  = ny - noBtn.offsetHeight / 2;
+
+        const maxLeft = area.width - noBtn.offsetWidth - 4;
+        const maxTop  = area.height - noBtn.offsetHeight - 4;
+
+        noBtn.style.left = clamp(left, 4, maxLeft) + 'px';
+        noBtn.style.top  = clamp(top, 4, maxTop) + 'px';
+
+        // Make YES button grow slightly
+        yesBtn.style.transform = `scale(${clamp(1 + (dangerRadius - dist)/260, 1, 1.12)})`;
+      }
+    }
+
+    // Mobile finger proximity
+    btnArea.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      dodgeFrom(t.clientX, t.clientY);
+    }, { passive: true });
+
+    // Pointer proximity for desktop/mobile
+    btnArea.addEventListener('pointermove', (e) => {
+      dodgeFrom(e.clientX, e.clientY);
+    });
+
+    // Escape if clicked
+    noBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const area = btnArea.getBoundingClientRect();
+      const maxLeft = area.width - noBtn.offsetWidth - 4;
+      const maxTop  = area.height - noBtn.offsetHeight - 4;
+      noBtn.style.left = (4 + Math.random() * maxLeft) + 'px';
+      noBtn.style.top  = (4 + Math.random() * maxTop) + 'px';
+    });
+
+    window.addEventListener('load', placeNoInitial);
+    window.addEventListener('resize', placeNoInitial);
 
     function sayYes() {
       document.getElementById('message').style.display = 'block';
